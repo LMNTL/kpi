@@ -208,10 +208,10 @@ def run(*args):
         configuration_set['ConfigurationSetName'] = 'marketing_emails'
 
     for user in eligible_users.iterator(chunk_size=500):
-        if user['email_cleaned'] in already_emailed:
+        if not force_send and user['email_cleaned'] in already_emailed:
             continue
         if force_send:
-            resubscribe_user(user.email_cleaned)
+            resubscribe_user(user['email_cleaned'])
         if verbose:
             print(user['username'] + ' - ' + user['email_cleaned'])
         for attempts in range(MAX_SEND_ATTEMPTS):
@@ -231,6 +231,7 @@ def run(*args):
 
             match status:
                 case 200:
+
                     users_emailed_count += 1
                     percent_done = users_emailed_count / min(active_user_count, remaining_sends) * 100
                     print(
@@ -238,10 +239,9 @@ def run(*args):
                         end='',
                         flush=True,
                     )
-                    # user.extra_details.private_data[
-                    #     user_detail_email_key
-                    # ] = True
-                    details = ExtraUserDetail.objects.get(user__username=user['username'])
+
+                    already_emailed.append(user['username'])
+                    (details, _) = ExtraUserDetail.objects.get_or_create(user_id=user['pk'])
                     details.private_data[
                          user_detail_email_key
                     ] = True
@@ -324,10 +324,7 @@ def get_eligible_users(user_detail_email_key, force=False, verbose=False):
             function='REGEXP_REPLACE',
             output_field=CharField(),
         ),
-    ).values('email_cleaned', email_field_name, 'username').distinct(
-        email_field_name, 'email_cleaned',
-    ).order_by('email_cleaned', email_field_name)
-
+    ).distinct('email_cleaned', email_field_name)
 
     already_sent_emails = list(eligible_users.all().filter(**{
         email_field_name: True,
@@ -339,12 +336,11 @@ def get_eligible_users(user_detail_email_key, force=False, verbose=False):
         })
         # eligible_users = eligible_users.exclude(email_cleaned__in=already_sent_emails)
 
-
     if verbose:
         print(eligible_users)
         print(eligible_users.query)
 
-    return (eligible_users, already_sent_emails)
+    return (eligible_users.values('email_cleaned', 'username', 'pk'), already_sent_emails)
 
 
 def send_email(user, configuration, template):
