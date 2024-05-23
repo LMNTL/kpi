@@ -20,14 +20,14 @@ from kpi.models.asset import AssetDeploymentStatus
 MAX_SEND_ATTEMPTS = 1
 RETRY_WAIT_TIME = 30  # in seconds
 FROM_ADDRESS = 'KoboToolbox <updates@kobotoolbox.org>'
-EMAIL_SUBJECT = '✉️ Updates to our Terms of Service and Privacy Notice'
-EMAIL_TEMPLATE_NAME = 'tos-change-alert'
+EMAIL_SUBJECT = ''
+EMAIL_TEMPLATE_NAME = ''
 
 # Path to a valid .html file to use for the email
-EMAIL_HTML_FILENAME = 'tos-change.html'
+EMAIL_HTML_FILENAME = ''
 
 # Path to a valid .txt file to use for the email text content
-EMAIL_TEXT_FILENAME = 'tos-change.txt'
+EMAIL_TEXT_FILENAME = ''
 
 """
 We don't want to use all of our available email sends; some need to be reserved for other uses (password resets, etc.)
@@ -63,10 +63,6 @@ Example:
 ]
 """
 USER_FILTERS = [
-    Q(last_login__gte=ACTIVE_SINCE - relativedelta(days=730)) |
-    Q(
-        assets___deployment_status=AssetDeploymentStatus.DEPLOYED,
-    ),
 ]
 
 
@@ -91,7 +87,7 @@ Example:
 """
 PERSONALIZED_FIELDS = {}
 
-CONTACT_LIST = IS_MARKETING_EMAIL and 'marketing' or 'all'
+contact_list = IS_MARKETING_EMAIL and 'marketing' or 'all'
 
 start_time = time.time()
 
@@ -173,7 +169,7 @@ def run(*args):
 
     try:
         response = ses.update_contact_list(
-            ContactListName=CONTACT_LIST,
+            ContactListName=contact_list,
             Topics=[
                 {
                     'TopicName': EMAIL_TEMPLATE_NAME,
@@ -363,7 +359,7 @@ def send_email(user, configuration, template):
             #     },
         },
         ListManagementOptions={
-            'ContactListName': CONTACT_LIST,
+            'ContactListName': contact_list,
         },
         **configuration,
     )
@@ -396,7 +392,7 @@ def build_message(template, user):
 
 def resubscribe_user(email):
     ses.update_contact(
-        ContactListName=CONTACT_LIST,
+        ContactListName=contact_list,
         EmailAddress=email,
         UnsubscribeAll=False,
     )
